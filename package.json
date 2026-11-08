@@ -1,0 +1,93 @@
+{
+  "name": "capacitor-plugin-google-drive-backups",
+  "version": "0.0.1",
+  "description": "Google Drive backups for Capacitor, with progress and typed errors over the bridge",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/"
+  ],
+  "author": "Kevin Illanas",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kevinillanas/capacitor-plugin-google-drive-backups.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kevinillanas/capacitor-plugin-google-drive-backups/issues"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native"
+  ],
+  "scripts": {
+    "verify": "npm run verify:android && npm run verify:web && npm run check:license",
+    "verify:android": "cd android && ./gradlew clean build test && cd ..",
+    "verify:web": "npm run build",
+    "lint": "npm run eslint && npm run prettier -- --check",
+    "fmt": "npm run eslint -- --fix && npm run prettier -- --write",
+    "eslint": "eslint . --ext .ts,.mjs",
+    "prettier": "prettier \"**/*.{css,html,ts,js,java}\" --plugin=prettier-plugin-java",
+    "docgen": "docgen --api GoogleDriveBackupsPlugin --output-readme README.md --output-json dist/docs.json --project tsconfig.build.json",
+    "build": "npm run clean && npm run docgen && tsc -p tsconfig.build.json && rollup -c rollup.config.mjs",
+    "clean": "rimraf ./dist",
+    "watch": "tsc --watch -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json",
+    "check:license": "node scripts/check-license.mjs",
+    "check:tree-shaking": "node scripts/check-tree-shaking.mjs"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/docgen": "^0.3.1",
+    "@ionic/eslint-config": "^0.4.0",
+    "@ionic/prettier-config": "^4.0.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.6.2",
+    "prettier-plugin-java": "^2.7.7",
+    "rimraf": "^6.1.0",
+    "rollup": "^4.53.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "prettier": "@ionic/prettier-config",
+  "eslintConfig": {
+    "extends": "@ionic/eslint-config/recommended",
+    "overrides": [
+      {
+        "files": [
+          "scripts/**/*.mjs"
+        ],
+        "env": {
+          "node": true
+        }
+      }
+    ]
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.cjs.js"
+    }
+  },
+  "sideEffects": [
+    "./dist/esm/index.js"
+  ]
+}
