@@ -1,0 +1,27 @@
+{
+  "_note": "Shared by TypeScript (src/core/domain/errors.ts, ERROR_CODES) and Kotlin (core/domain/ErrorCatalog.kt). Each code with its recoverable flag. A code added to one catalog must be added here, or the parity tests fail.",
+  "codes": {
+    "auth.001": true,
+    "auth.002": true,
+    "auth.003": true,
+    "space.001": true,
+    "space.002": true,
+    "space.010": true,
+    "network.001": true,
+    "network.002": true,
+    "network.003": true,
+    "network.010": true,
+    "file.001": false,
+    "file.002": false,
+    "file.003": false,
+    "drive.001": false,
+    "drive.002": false,
+    "drive.003": true,
+    "operation.001": false,
+    "operation.002": false,
+    "metadata.001": false,
+    "platform.001": false,
+    "configuration.001": false,
+    "configuration.002": false
+  }
+}

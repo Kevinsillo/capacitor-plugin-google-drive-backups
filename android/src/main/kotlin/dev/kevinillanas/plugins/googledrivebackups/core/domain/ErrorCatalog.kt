@@ -15,6 +15,7 @@ object ErrorCatalog {
         "metadata.001" to false,
         "platform.001" to false,
         "configuration.001" to false,
+        "configuration.002" to false,
     )
 
     /** `true` if the app can retry or fix the cause. Unknown codes are not recoverable. */

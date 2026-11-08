@@ -35,6 +35,7 @@ export const ERROR_CODES = {
   'platform.001': { description: 'Not available on this platform', recoverable: false },
 
   'configuration.001': { description: 'Plugin configuration is missing or invalid', recoverable: false },
+  'configuration.002': { description: 'A configuration value is not valid', recoverable: false },
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
