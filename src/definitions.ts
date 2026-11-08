@@ -22,11 +22,16 @@ export interface GoogleDriveBackupsPlugin {
    * - `webClientId`: OAuth client id for the browser (Google Identity Services). Required on the web only.
    * - `storageLocation`: `appDataFolder` (private to the app, default) or `drive` (visible Drive).
    *   Changing it or `webClientId` signs the user out.
+   * - `folderName`: folder that holds the backups. By default, on Android with `drive` it is the app's
+   *   package name (for example `dev.example.app`); with `appDataFolder`, and on the web, there is no
+   *   folder. `''` means no folder, and `null` restores the default. Changing it does not sign the user
+   *   out, but backups in the previous folder are no longer listed.
    */
   configure(options: {
     logLevel?: LogLevel;
     webClientId?: string;
     storageLocation?: 'appDataFolder' | 'drive';
+    folderName?: string | null;
   }): Promise<void>;
 
   /**

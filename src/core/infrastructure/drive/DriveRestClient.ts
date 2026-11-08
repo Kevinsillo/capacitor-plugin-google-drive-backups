@@ -8,6 +8,7 @@ import { isRetryable, reasonFromResponse, translateDriveError } from './driveErr
 const API_BASE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3';
 const FILE_FIELDS = 'id,name,size,createdTime,appProperties';
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /** Progress callback for uploads: bytes sent so far and total bytes. */
 export type UploadProgressCallback = (bytes: number, total: number) => void;
@@ -34,6 +35,11 @@ export interface DriveRestClientOptions {
    * Pending decision from the spike (Phase 2 of the plan): configurable until it is closed.
    */
   storageLocation: 'appDataFolder' | 'drive';
+  /**
+   * Folder that holds the backups. It is found or created once per client. Empty or absent means no
+   * folder: backups go to the root of the storage location.
+   */
+  folderName?: string | null;
   /** Retries for 429, 5xx and quota limits. Default 3. */
   maxRetries?: number;
   /** Delay between retries. Injectable so the tests do not actually wait. */
@@ -53,6 +59,8 @@ interface DriveFile {
 export class DriveRestClient implements IRemoteStorage {
   private readonly maxRetries: number;
   private readonly wait: (ms: number) => Promise<void>;
+  /** The folder lookup, shared by every operation of this client. Cleared if it fails, so it is retried. */
+  private folder?: Promise<string | undefined>;
 
   constructor(private readonly options: DriveRestClientOptions) {
     this.maxRetries = options.maxRetries ?? 3;
@@ -75,7 +83,8 @@ export class DriveRestClient implements IRemoteStorage {
     validateMetadata(input.metadata);
 
     const metadata: Record<string, unknown> = { name: input.name, appProperties: input.metadata };
-    if (this.options.storageLocation === 'appDataFolder') metadata.parents = ['appDataFolder'];
+    const parent = await this.parentId(signal);
+    if (parent) metadata.parents = [parent];
 
     const boundary = `gdb${Math.random().toString(36).slice(2)}`;
     const body = new Blob([
@@ -108,12 +117,16 @@ export class DriveRestClient implements IRemoteStorage {
 
   async list(signal?: AbortSignal): Promise<RemoteBackup[]> {
     const backups: RemoteBackup[] = [];
+    // With a folder, only the backups inside it: the folder itself is not a backup.
+    const filter = this.options.folderName
+      ? `trashed = false and mimeType != '${FOLDER_MIME}' and '${await this.parentId(signal)}' in parents`
+      : 'trashed = false';
     let nextPage: string | undefined;
 
     do {
       const params = new URLSearchParams({
         spaces: this.options.storageLocation,
-        q: 'trashed = false',
+        q: filter,
         orderBy: 'createdTime desc',
         pageSize: '100',
         fields: `nextPageToken,files(${FILE_FIELDS})`,
@@ -136,6 +149,45 @@ export class DriveRestClient implements IRemoteStorage {
 
   async delete(id: string, signal?: AbortSignal): Promise<void> {
     await this.request(`${API_BASE}/files/${encodeURIComponent(id)}`, { method: 'DELETE', signal });
+  }
+
+  /**
+   * Id of the folder that holds the backups, or undefined for the root. Without a folder name the
+   * root is `appDataFolder` in that storage and nothing in `drive`.
+   */
+  private parentId(signal?: AbortSignal): Promise<string | undefined> {
+    const name = this.options.folderName || undefined;
+    if (!name) {
+      return Promise.resolve(this.options.storageLocation === 'appDataFolder' ? 'appDataFolder' : undefined);
+    }
+    this.folder ??= this.findOrCreateFolder(name, signal).catch((error: unknown) => {
+      this.folder = undefined;
+      throw error;
+    });
+    return this.folder;
+  }
+
+  /** The oldest folder with that name under the root, or a new one. Older duplicates are never touched. */
+  private async findOrCreateFolder(name: string, signal?: AbortSignal): Promise<string> {
+    const root = this.options.storageLocation === 'appDataFolder' ? 'appDataFolder' : 'root';
+    const params = new URLSearchParams({
+      spaces: this.options.storageLocation,
+      q: `name = '${escapeQuery(name)}' and mimeType = '${FOLDER_MIME}' and '${root}' in parents and trashed = false`,
+      orderBy: 'createdTime',
+      pageSize: '1',
+      fields: 'files(id)',
+    });
+    const search = await this.request(`${API_BASE}/files?${params.toString()}`, { signal });
+    const found = ((await search.json()) as { files?: { id: string }[] }).files?.[0];
+    if (found) return found.id;
+
+    const created = await this.request(`${API_BASE}/files?fields=id`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+      body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [root] }),
+      signal,
+    });
+    return ((await created.json()) as { id: string }).id;
   }
 
   /**
@@ -172,6 +224,11 @@ export class DriveRestClient implements IRemoteStorage {
       throw translateDriveError(response.status, reason);
     }
   }
+}
+
+/** Escapes the characters that end a quoted value in a Drive `q` query. */
+function escapeQuery(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /** 500 ms, 1 s, 2 s… */

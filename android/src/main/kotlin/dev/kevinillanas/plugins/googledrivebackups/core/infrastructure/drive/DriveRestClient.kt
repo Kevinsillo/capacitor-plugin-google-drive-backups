@@ -19,18 +19,23 @@ import java.util.Random
  * Drive v3 REST client for Android. Mirror of `DriveRestClient` in TypeScript: same endpoints, same
  * retry policy, same error mapping (shared fixtures), and the same metadata checks before any request.
  *
- * [storageLocation] is `appDataFolder` (private to the app) or `drive`. [token] returns a valid access
- * token and throws `auth.001` or `auth.002` when there is none. [wait] is injectable so tests do not sleep.
+ * [storageLocation] is `appDataFolder` (private to the app) or `drive`. [folderName] is the parent folder
+ * for the backups: the client finds it or creates it, once per instance. Null means no folder: backups go
+ * to the root of the storage location. [token] returns a valid access token and throws `auth.001` or
+ * `auth.002` when there is none. [wait] is injectable so tests do not sleep.
  */
 class DriveRestClient(
     private val transport: HttpTransport,
     private val token: () -> String,
     private val storageLocation: String,
+    private val folderName: String? = null,
     private val apiBase: String = "https://www.googleapis.com/drive/v3",
     private val uploadBase: String = "https://www.googleapis.com/upload/drive/v3",
     private val maxRetries: Int = 3,
     private val wait: (Long) -> Unit = { Thread.sleep(it) },
 ) : RemoteStorage {
+
+    private var folderId: String? = null
 
     /** Drive quota. Returns nulls when the account reports no limit. */
     override fun space(): DriveSpace {
@@ -54,13 +59,12 @@ class DriveRestClient(
         if (!content.isFile) throw ErrorBackup("file.001", mapOf("path" to content.path))
         if (content.length() == 0L) throw ErrorBackup("file.003", mapOf("path" to content.path))
 
+        val parent = parentId()
         val boundary = "gdb${Random().nextLong().toULong()}"
         val resource = JsonObject().apply {
             addProperty("name", name)
             add("appProperties", JsonObject().apply { metadata.forEach { (k, v) -> addProperty(k, v) } })
-            if (storageLocation == "appDataFolder") {
-                add("parents", JsonArray().apply { add("appDataFolder") })
-            }
+            parent?.let { add("parents", JsonArray().apply { add(it) }) }
         }
         val head = (
             "--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" +
@@ -101,11 +105,17 @@ class DriveRestClient(
     /** Backups ordered by creation date, newest first. Follows every page. */
     override fun list(): List<RemoteBackup> {
         val backups = mutableListOf<RemoteBackup>()
+        // With a folder, only the backups inside it: the folder itself is not a backup.
+        val filter = if (folderName == null) {
+            "trashed = false"
+        } else {
+            "trashed = false and mimeType != '$FOLDER_MIME' and '${parentId()}' in parents"
+        }
         var nextPage: String? = null
         do {
             val query = buildString {
                 append("spaces=").append(storageLocation)
-                append("&q=").append(encode("trashed = false"))
+                append("&q=").append(encode(filter))
                 append("&orderBy=").append(encode("createdTime desc"))
                 append("&pageSize=100&fields=").append(encode("nextPageToken,files($FILE_FIELDS)"))
                 nextPage?.let { append("&pageToken=").append(encode(it)) }
@@ -150,6 +160,41 @@ class DriveRestClient(
     override fun delete(id: String) {
         send(HttpRequest("DELETE", "$apiBase/files/${encode(id)}")).close()
     }
+
+    /**
+     * Id of the folder that holds the backups, or null for the root. Without [folderName] the root is
+     * `appDataFolder` in that storage and nothing in `drive`. Found or created once, then cached.
+     */
+    @Synchronized
+    private fun parentId(): String? {
+        val name = folderName ?: return rootId().takeIf { storageLocation == "appDataFolder" }
+        folderId?.let { return it }
+        return findOrCreateFolder(name).also { folderId = it }
+    }
+
+    /** The oldest folder with that name under the root, or a new one. Older duplicates are never touched. */
+    private fun findOrCreateFolder(name: String): String {
+        val root = rootId()
+        val query = "name = '${escapeQuery(name)}' and mimeType = '$FOLDER_MIME' and '$root' in parents and trashed = false"
+        val search = "$apiBase/files?spaces=$storageLocation&q=${encode(query)}&orderBy=createdTime&pageSize=1&fields=files(id)"
+        readJson(send(HttpRequest("GET", search))).getAsJsonArray("files")
+            ?.firstOrNull()?.let { return it.asJsonObject.get("id").asString }
+
+        val resource = JsonObject().apply {
+            addProperty("name", name)
+            addProperty("mimeType", FOLDER_MIME)
+            add("parents", JsonArray().apply { add(root) })
+        }.toString().toByteArray(Charsets.UTF_8)
+        val body = RequestBody(contentType = "application/json; charset=UTF-8", length = resource.size.toLong()) {
+            it.write(resource)
+        }
+        val created = send(HttpRequest("POST", "$apiBase/files?fields=id", body = body))
+        return readJson(created).get("id").asString
+    }
+
+    private fun rootId(): String = if (storageLocation == "appDataFolder") "appDataFolder" else "root"
+
+    private fun escapeQuery(value: String): String = value.replace("\\", "\\\\").replace("'", "\\'")
 
     /**
      * The only way out to the network. Adds the token, retries retryable errors with exponential delay
@@ -220,6 +265,7 @@ class DriveRestClient(
 
     private companion object {
         const val FILE_FIELDS = "id,name,size,createdTime,appProperties"
+        const val FOLDER_MIME = "application/vnd.google-apps.folder"
         const val BUFFER_SIZE = 64 * 1024
     }
 }

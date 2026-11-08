@@ -12,6 +12,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.URLDecoder
 
 /** Transport double: returns prepared responses in order and records every request. */
 private class FakeTransport(private val responses: MutableList<HttpResponse>) : HttpTransport {
@@ -186,4 +187,62 @@ class DriveRestClientTest {
         assertEquals("drive.002", errorOf { client(transport).delete("X") }.code)
         assertEquals("DELETE", transport.requests[0].method)
     }
+
+    @Test
+    fun folder_isCreatedWhenMissing_andBecomesTheUploadParent() {
+        val file = tmp.newFile("backup.zip").apply { writeBytes(ByteArray(10) { 1 }) }
+        val transport = FakeTransport(
+            mutableListOf(
+                json(200, """{"files":[]}"""),
+                json(200, """{"id":"FOLDER"}"""),
+                json(200, """{"id":"F1","name":"backup.zip","size":"10","createdTime":"2026-11-08T09:00:00.000Z"}"""),
+            ),
+        )
+        folderClient(transport).upload("backup.zip", file, emptyMap()) { _, _ -> }
+
+        assertEquals("GET", transport.requests[0].method)
+        assertEquals("POST", transport.requests[1].method)
+        assertTrue(bodyText(transport.requests[1]).contains(""""name":"dev.kevinillanas.diary""""))
+        assertTrue(bodyText(transport.requests[1]).contains(""""mimeType":"application/vnd.google-apps.folder""""))
+        assertTrue(bodyText(transport.requests[1]).contains(""""parents":["root"]"""))
+        assertTrue(bodyText(transport.requests[2]).contains(""""parents":["FOLDER"]"""))
+    }
+
+    @Test
+    fun folder_isFoundAndCachedBetweenOperations_andListOnlyItsBackups() {
+        val transport = FakeTransport(
+            mutableListOf(
+                json(200, """{"files":[{"id":"FOLDER"}]}"""),
+                json(200, """{"files":[]}"""),
+                json(200, """{"files":[]}"""),
+            ),
+        )
+        val client = folderClient(transport)
+        client.list()
+        client.list()
+
+        assertEquals(3, transport.requests.size)
+        val query = URLDecoder.decode(transport.requests[1].url, "UTF-8")
+        assertTrue(query.contains("'FOLDER' in parents"))
+        assertTrue(query.contains("mimeType != 'application/vnd.google-apps.folder'"))
+    }
+
+    @Test
+    fun folder_nameQuotesAreEscapedInTheSearch() {
+        val transport = FakeTransport(mutableListOf(json(200, """{"files":[{"id":"FOLDER"}]}"""), json(200, """{"files":[]}""")))
+        folderClient(transport, folder = "o'brien").list()
+        assertTrue(URLDecoder.decode(transport.requests[0].url, "UTF-8").contains("name = 'o\\'brien'"))
+    }
+
+    private fun folderClient(
+        transport: HttpTransport,
+        location: String = "drive",
+        folder: String = "dev.kevinillanas.diary",
+    ) = DriveRestClient(
+        transport = transport,
+        token = { "TOKEN" },
+        storageLocation = location,
+        folderName = folder,
+        wait = {},
+    )
 }

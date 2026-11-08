@@ -44,6 +44,9 @@ class GoogleDriveBackupsPlugin : Plugin() {
     private val operations = ConcurrentHashMap<String, CancellationToken>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var storageLocation = "appDataFolder"
+    /** Null until `configure` sets a folder: the default then depends on the storage. An empty string means no folder. */
+    private var folderSetting: String? = null
+    private var client: DriveRestClient? = null
     private var account: String? = null
     private var googleAuth: GoogleAuth? = null
 
@@ -69,6 +72,11 @@ class GoogleDriveBackupsPlugin : Plugin() {
                 googleAuth?.scope = scopeFor(location)
             }
         }
+        if (call.data.has("folderName")) {
+            // null restores the default: the package name.
+            folderSetting = call.getString("folderName")
+        }
+        resetClient()
         call.resolve()
     }
 
@@ -80,6 +88,7 @@ class GoogleDriveBackupsPlugin : Plugin() {
                 onSuccess = {
                     executor.execute {
                         runCatching {
+                            resetClient() // a new account has its own folders
                             account = remote().accountEmail() ?: ""
                             JSObject().put("account", account)
                         }.fold(
@@ -97,6 +106,7 @@ class GoogleDriveBackupsPlugin : Plugin() {
     fun signOut(call: PluginCall) {
         session.clear()
         account = null
+        resetClient()
         call.resolve()
     }
 
@@ -212,11 +222,28 @@ class GoogleDriveBackupsPlugin : Plugin() {
         }
     }
 
-    private fun remote() = DriveRestClient(
+    /** One client per configuration and account, so the backup folder is looked up once. */
+    @Synchronized
+    private fun remote(): DriveRestClient = client ?: DriveRestClient(
         transport = HttpUrlTransport(),
         token = { session.token() },
         storageLocation = storageLocation,
-    )
+        folderName = folderName(),
+    ).also { client = it }
+
+    @Synchronized
+    private fun resetClient() {
+        client = null
+    }
+
+    /**
+     * The folder for the backups. Without a configured name it is the package name in `drive`, where the
+     * user sees it, and none in `appDataFolder`, which is already private to the app. "" means none.
+     */
+    private fun folderName(): String? {
+        val configured = folderSetting ?: if (storageLocation == "drive") context.packageName else null
+        return configured?.takeIf { it.isNotEmpty() }
+    }
 
     private fun cacheDir(): File = context.cacheDir
 

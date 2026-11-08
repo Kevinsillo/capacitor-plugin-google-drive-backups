@@ -267,3 +267,69 @@ describe('DriveRestClient: errors and retries', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('DriveRestClient with a backup folder', () => {
+  function folderClient(fetchFn: typeof fetch, folderName: string | null = 'dev.kevinillanas.diary') {
+    return client(fetchFn, { storageLocation: 'drive', folderName });
+  }
+
+  it('creates the folder when missing and uses it as the upload parent', async () => {
+    const { fetch, calls } = fakeFetch([
+      json(200, { files: [] }),
+      json(200, { id: 'FOLDER' }),
+      json(200, { id: 'F1', name: 'backup.zip', size: '5', createdTime: '2026-11-08T09:00:00.000Z' }),
+    ]);
+
+    await folderClient(fetch).upload({
+      name: 'backup.zip',
+      content: new Blob(['hello']),
+      metadata: {},
+    });
+
+    expect(calls[0].init.method).toBeUndefined();
+    expect(calls[1].init.method).toBe('POST');
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({
+      name: 'dev.kevinillanas.diary',
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: ['root'],
+    });
+    expect(await (calls[2].init.body as Blob).text()).toContain('"parents":["FOLDER"]');
+  });
+
+  it('reuses an existing folder and lists only the backups inside it', async () => {
+    const { fetch, calls } = fakeFetch([
+      json(200, { files: [{ id: 'FOLDER' }] }),
+      json(200, { files: [] }),
+      json(200, { files: [] }),
+    ]);
+
+    const folder = folderClient(fetch);
+    await folder.list();
+    await folder.list();
+
+    expect(calls).toHaveLength(3);
+    const query = new URL(calls[1].url).searchParams.get('q');
+    expect(query).toBe("trashed = false and mimeType != 'application/vnd.google-apps.folder' and 'FOLDER' in parents");
+  });
+
+  it('escapes quotes in the folder name for the search query', async () => {
+    const { fetch, calls } = fakeFetch([json(200, { files: [{ id: 'FOLDER' }] }), json(200, { files: [] })]);
+    await folderClient(fetch, "o'brien").list();
+    expect(new URL(calls[0].url).searchParams.get('q')).toContain("name = 'o\\'brien'");
+  });
+
+  it('puts the folder inside appDataFolder when the storage is appDataFolder', async () => {
+    const { fetch, calls } = fakeFetch([json(200, { files: [] }), json(200, { id: 'FOLDER' })]);
+    await client(fetch, { folderName: 'dev.kevinillanas.diary' })
+      .list()
+      .catch(() => undefined);
+    expect(JSON.parse(String(calls[1].init.body)).parents).toEqual(['appDataFolder']);
+  });
+
+  it('does not search for a folder when none is configured', async () => {
+    const { fetch, calls } = fakeFetch([json(200, { files: [] })]);
+    await folderClient(fetch, null).list();
+    expect(calls).toHaveLength(1);
+    expect(new URL(calls[0].url).searchParams.get('q')).toBe('trashed = false');
+  });
+});

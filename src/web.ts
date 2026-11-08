@@ -21,6 +21,7 @@ interface Settings {
   logLevel: LogLevel;
   webClientId?: string;
   storageLocation: 'appDataFolder' | 'drive';
+  folderName?: string | null;
 }
 
 /**
@@ -43,6 +44,7 @@ export class GoogleDriveBackupsWeb extends WebPlugin implements GoogleDriveBacku
     logLevel?: LogLevel;
     webClientId?: string;
     storageLocation?: 'appDataFolder' | 'drive';
+    folderName?: string | null;
   }): Promise<void> {
     if (options.logLevel !== undefined) this.settings.logLevel = options.logLevel;
 
@@ -53,13 +55,21 @@ export class GoogleDriveBackupsWeb extends WebPlugin implements GoogleDriveBacku
     if (options.storageLocation !== undefined) this.settings.storageLocation = options.storageLocation;
 
     if (clientChanged || locationChanged) this.reset();
+
+    // null restores the default, which on the web is no folder: the browser has no package name.
+    if (options.folderName !== undefined) {
+      this.settings.folderName = options.folderName;
+      this.client = undefined;
+    }
   }
 
   async signIn(): Promise<{ account: string }> {
     return this.report(undefined, async () => {
-      const { auth, client } = this.session();
+      const { auth } = this.session();
       await auth.signIn();
-      this.account = (await client.accountEmail()) ?? '';
+      // A new account has its own folders: the client must look the folder up again.
+      this.client = undefined;
+      this.account = (await this.session().client.accountEmail()) ?? '';
       this.emitter.log('info', 'signIn', 'session started');
       return { account: this.account };
     });
@@ -68,6 +78,7 @@ export class GoogleDriveBackupsWeb extends WebPlugin implements GoogleDriveBacku
   async signOut(): Promise<void> {
     return this.report(undefined, async () => {
       await this.auth?.signOut();
+      this.client = undefined;
       this.account = undefined;
       this.emitter.log('info', 'signOut', 'session closed');
     });
@@ -120,26 +131,32 @@ export class GoogleDriveBackupsWeb extends WebPlugin implements GoogleDriveBacku
     this.emitter.log('debug', 'cancel', `no running operation ${options.operationId}`);
   }
 
-  /** Builds the auth and Drive client on first use, from the current configuration. */
+  /**
+   * Builds the auth on first use, and the Drive client on first use after each change of account or
+   * folder. The client caches the backup folder, so it must be rebuilt when either changes.
+   */
   private session(): { auth: GisAuth; client: DriveRestClient } {
     const clientId = this.settings.webClientId;
     if (!clientId) throw new ErrorBackup('configuration.001', { missing: 'webClientId' });
 
-    if (!this.auth || !this.client) {
-      const auth = new GisAuth({
+    if (!this.auth) {
+      this.auth = new GisAuth({
         clientId,
         scope: SCOPES[this.settings.storageLocation],
         gis: loadGis,
       });
-      this.auth = auth;
+    }
+    const auth = this.auth;
+    if (!this.client) {
       this.client = new DriveRestClient({
         fetch: (url, init) => fetch(url, init),
         transport: xhrTransport,
         getToken: async () => auth.getToken(),
         storageLocation: this.settings.storageLocation,
+        folderName: this.settings.folderName ?? null,
       });
     }
-    return { auth: this.auth, client: this.client };
+    return { auth, client: this.client };
   }
 
   private reset(): void {
