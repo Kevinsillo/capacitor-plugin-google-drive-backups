@@ -15,10 +15,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kevinillanas/capacitor-plugin-google-drive-backups.git"
+    "url": "git+https://github.com/Kevinsillo/capacitor-plugin-google-drive-backups.git"
   },
   "bugs": {
-    "url": "https://github.com/kevinillanas/capacitor-plugin-google-drive-backups/issues"
+    "url": "https://github.com/Kevinsillo/capacitor-plugin-google-drive-backups/issues"
   },
   "keywords": [
     "capacitor",
