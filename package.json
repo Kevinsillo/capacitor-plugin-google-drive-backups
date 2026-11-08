@@ -42,7 +42,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "check:license": "node scripts/check-license.mjs",
-    "check:tree-shaking": "node scripts/check-tree-shaking.mjs"
+    "check:tree-shaking": "node scripts/check-tree-shaking.mjs",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@capacitor/android": "^8.0.0",
