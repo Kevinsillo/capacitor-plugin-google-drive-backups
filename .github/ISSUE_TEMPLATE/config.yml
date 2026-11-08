@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the README
+    url: https://github.com/kevinillanas/capacitor-plugin-google-drive-backups#readme
+    about: Setup, configuration, error codes and the support policy.
