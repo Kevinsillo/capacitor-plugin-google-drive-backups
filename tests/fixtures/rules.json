@@ -1,0 +1,29 @@
+{
+  "_note": "Cases shared by TypeScript (Vitest) and Kotlin (JUnit). If a rule changes, update these cases and both sides. 'metadata' values may be {\"character\": \"x\", \"times\": N} to repeat text; 'properties': N generates N keys k0..kN with value 'v'.",
+  "hasEnoughSpace": [
+    { "free": 110, "needed": 100, "margin": 1.1, "expected": true },
+    { "free": 109, "needed": 100, "margin": 1.1, "expected": false },
+    { "free": 100, "needed": 100, "margin": 1.0, "expected": true },
+    { "free": 99, "needed": 100, "margin": 1.0, "expected": false }
+  ],
+  "quotaNearLimit": [
+    { "limit": 1000, "free": 100, "expected": true },
+    { "limit": 1000, "free": 101, "expected": false },
+    { "limit": 0, "free": 0, "expected": false },
+    { "limit": 100, "free": 500, "expected": false }
+  ],
+  "shouldEmitProgress": [
+    { "last": null, "now": 0, "expected": true },
+    { "last": 1000, "now": 1249, "expected": false },
+    { "last": 1000, "now": 1250, "expected": true }
+  ],
+  "validateMetadata": [
+    { "description": "empty", "metadata": {}, "expected": null },
+    { "description": "30 properties", "properties": 30, "expected": null },
+    { "description": "31 properties", "properties": 31, "expected": "metadata.001" },
+    { "description": "124 bytes exactly", "metadata": { "clav": { "character": "x", "times": 120 } }, "expected": null },
+    { "description": "125 bytes", "metadata": { "clav": { "character": "x", "times": 121 } }, "expected": "metadata.001" },
+    { "description": "ñ counts as two bytes: 125 bytes", "metadata": { "a": { "character": "ñ", "times": 62 } }, "expected": "metadata.001" },
+    { "description": "ñ counts as two bytes: 123 bytes", "metadata": { "a": { "character": "ñ", "times": 61 } }, "expected": null }
+  ]
+}
