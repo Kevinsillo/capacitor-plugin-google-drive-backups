@@ -1,0 +1,16 @@
+{
+  "_note": "Shared by TypeScript (src/core/infrastructure/drive/driveError.ts) and Kotlin (core/infrastructure/drive/DriveErrors.kt). Each case: HTTP status, the error reason from the body (null if none), the expected error code and whether the request is retried.",
+  "cases": [
+    { "status": 401, "reason": null, "code": "auth.002", "retryable": false },
+    { "status": 404, "reason": null, "code": "drive.002", "retryable": false },
+    { "status": 429, "reason": null, "code": "drive.003", "retryable": true },
+    { "status": 500, "reason": null, "code": "network.003", "retryable": true },
+    { "status": 503, "reason": null, "code": "network.003", "retryable": true },
+    { "status": 403, "reason": "storageQuotaExceeded", "code": "space.002", "retryable": false },
+    { "status": 403, "reason": "rateLimitExceeded", "code": "drive.003", "retryable": true },
+    { "status": 403, "reason": "userRateLimitExceeded", "code": "drive.003", "retryable": true },
+    { "status": 403, "reason": "forbidden", "code": "drive.001", "retryable": false },
+    { "status": 400, "reason": null, "code": "drive.001", "retryable": false },
+    { "status": 418, "reason": null, "code": "drive.001", "retryable": false }
+  ]
+}
