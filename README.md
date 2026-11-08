@@ -1,4 +1,14 @@
-# capacitor-plugin-google-drive-backups
+<div align="center">
+
+# Google Drive Backups
+
+***Google Drive backups for Capacitor apps — sign in, transfer, and report every step.***
+
+[![License](https://img.shields.io/github/license/Kevinsillo/capacitor-plugin-google-drive-backups?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-android%20%7C%20web-blue?style=flat-square)](https://github.com/Kevinsillo/capacitor-plugin-google-drive-backups)
+[![Capacitor](https://img.shields.io/badge/capacitor-%E2%89%A58-119EFF?style=flat-square&logo=capacitor)](https://capacitorjs.com)
+
+</div>
 
 Google Drive backups for Capacitor apps. The plugin signs in with Google, uploads and downloads backup files, lists and deletes them, and reports every step over the bridge: phases, progress, warnings and typed errors, including "not enough space" on the device or in Drive.
 
@@ -411,7 +421,9 @@ Detail level of `log` events.
 
 Construct a type with a set of properties K of type T
 
-<code>{ [P in K]: T; }</code>
+<code>{
+ [P in K]: T;
+ }</code>
 
 
 #### EventName
