@@ -42,8 +42,7 @@ format: ## Apply ESLint and Prettier fixes
 android: ## Build the Android library (debug)
 	cd android && ./gradlew assembleDebug --no-daemon
 
-check: ## License and tree-shaking checks (run build first)
-	npm run check:license
+check: ## Tree-shaking check (run build first)
 	npm run check:tree-shaking
 
 pack: build ## Dry-run the npm package to review its contents

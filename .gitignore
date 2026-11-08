@@ -2,6 +2,10 @@
 dist
 node_modules
 
+# local tooling and editor caches
+.claude/
+.kotlin/
+
 # iOS files
 Pods
 Podfile.lock
