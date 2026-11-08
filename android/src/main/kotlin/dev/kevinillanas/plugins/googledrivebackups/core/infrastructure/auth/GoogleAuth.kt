@@ -1,5 +1,6 @@
 package dev.kevinillanas.plugins.googledrivebackups.core.infrastructure.auth
 
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,7 +38,10 @@ class GoogleAuth(
                 val token = authorization.accessToken ?: throw ErrorBackup("auth.003")
                 session.store(token, DEFAULT_TOKEN_LIFETIME_S)
                 token
-            }.recoverCatching { throw ErrorBackup("auth.003") }
+            }.recoverCatching {
+                Log.w(TAG, "Consent finished without an access token: resultCode=${result.resultCode}", it)
+                throw ErrorBackup("auth.003")
+            }
             callback?.invoke(outcome)
         }
 
@@ -65,10 +69,14 @@ class GoogleAuth(
                     }
                 }
             }
-            .addOnFailureListener { onResult(Result.failure(ErrorBackup("auth.003"))) }
+            .addOnFailureListener { error ->
+                Log.w(TAG, "Authorization request failed", error)
+                onResult(Result.failure(ErrorBackup("auth.003")))
+            }
     }
 
     private companion object {
+        const val TAG = "GoogleDriveBackups"
         /** The authorization result does not report its expiry; Google access tokens last one hour. */
         const val DEFAULT_TOKEN_LIFETIME_S = 3600L
     }
