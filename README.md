@@ -38,16 +38,16 @@ Bug reports and feature requests are welcome in the GitHub issue tracker. Please
 
 ## Install
 
-To use npm
+The package is not published to npm yet, so install it from GitHub:
 
 ```bash
-npm install capacitor-plugin-google-drive-backups
+npm install github:Kevinsillo/capacitor-plugin-google-drive-backups
 ```
 
-To use yarn
+Or with yarn:
 
 ```bash
-yarn add capacitor-plugin-google-drive-backups
+yarn add github:Kevinsillo/capacitor-plugin-google-drive-backups
 ```
 
 Sync native files
