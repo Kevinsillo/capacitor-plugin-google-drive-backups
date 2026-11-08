@@ -92,7 +92,7 @@ Errors are rejected with a code in the form `category.number` (for example `spac
 <docgen-index>
 
 * [`configure(...)`](#configure)
-* [`signIn()`](#signin)
+* [`signIn(...)`](#signin)
 * [`signOut()`](#signout)
 * [`sessionStatus()`](#sessionstatus)
 * [`space()`](#space)
@@ -134,14 +134,19 @@ Sets the plugin configuration. Every field is optional.
 --------------------
 
 
-### signIn()
+### signIn(...)
 
 ```typescript
-signIn() => Promise<{ account: string; }>
+signIn(options?: { account?: string; }) => Promise<{ account: string; }>
 ```
 
 Signs in with Google. Rejects with `auth.003` if the user cancels. `account` is the email of the
-signed-in user, or an empty string if it cannot be read.
+signed-in user, or an empty string if it cannot be read. On Android, passing `account` (the email used
+before) signs that account in without a picker when access was already granted. The web ignores it.
+
+| Param         | Type                               |
+| ------------- | ---------------------------------- |
+| **`options`** | <code>{ account?: string; }</code> |
 
 **Returns:** <code>Promise&lt;{ account: string; }&gt;</code>
 

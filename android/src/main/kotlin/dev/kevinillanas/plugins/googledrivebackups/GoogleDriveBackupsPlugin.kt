@@ -83,7 +83,7 @@ class GoogleDriveBackupsPlugin : Plugin() {
     @PluginMethod
     fun signIn(call: PluginCall) {
         val auth = googleAuth ?: return reject(call, ErrorBackup("configuration.001", mapOf("missing" to "activity")))
-        auth.signIn { outcome ->
+        auth.signIn(call.getString("account")) { outcome ->
             outcome.fold(
                 onSuccess = {
                     executor.execute {

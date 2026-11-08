@@ -5,6 +5,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import android.accounts.Account
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
@@ -45,9 +46,16 @@ class GoogleAuth(
             callback?.invoke(outcome)
         }
 
-    /** Starts sign-in. [onResult] receives the access token, or `auth.003` if the user cancels or denies access. */
-    fun signIn(onResult: (Result<String>) -> Unit) {
-        val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(scope))).build()
+    /**
+     * Starts sign-in. With [account], Google authorizes that account and, if access was already granted, returns
+     * the token without showing any screen. [onResult] receives the access token, or `auth.003` if the user
+     * cancels or denies access.
+     */
+    fun signIn(account: String?, onResult: (Result<String>) -> Unit) {
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(listOf(Scope(scope)))
+            .apply { account?.takeIf { it.isNotBlank() }?.let { setAccount(Account(it, GOOGLE_ACCOUNT_TYPE)) } }
+            .build()
         Identity.getAuthorizationClient(activity)
             .authorize(request)
             .addOnSuccessListener { authorization ->
@@ -79,5 +87,6 @@ class GoogleAuth(
         const val TAG = "GoogleDriveBackups"
         /** The authorization result does not report its expiry; Google access tokens last one hour. */
         const val DEFAULT_TOKEN_LIFETIME_S = 3600L
+        const val GOOGLE_ACCOUNT_TYPE = "com.google"
     }
 }

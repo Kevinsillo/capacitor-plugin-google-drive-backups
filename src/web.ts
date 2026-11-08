@@ -63,7 +63,7 @@ export class GoogleDriveBackupsWeb extends WebPlugin implements GoogleDriveBacku
     }
   }
 
-  async signIn(): Promise<{ account: string }> {
+  async signIn(_options?: { account?: string }): Promise<{ account: string }> {
     return this.report(undefined, async () => {
       const { auth } = this.session();
       await auth.signIn();
