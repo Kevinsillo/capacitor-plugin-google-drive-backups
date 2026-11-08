@@ -4,6 +4,7 @@
 
 ***Google Drive backups for Capacitor apps — sign in, transfer, and report every step.***
 
+[![CI](https://img.shields.io/github/actions/workflow/status/Kevinsillo/capacitor-plugin-google-drive-backups/ci.yml?style=flat-square&label=tests)](https://github.com/Kevinsillo/capacitor-plugin-google-drive-backups/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/Kevinsillo/capacitor-plugin-google-drive-backups?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-android%20%7C%20web-blue?style=flat-square)](https://github.com/Kevinsillo/capacitor-plugin-google-drive-backups)
 [![Capacitor](https://img.shields.io/badge/capacitor-%E2%89%A58-119EFF?style=flat-square&logo=capacitor)](https://capacitorjs.com)
